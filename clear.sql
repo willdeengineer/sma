@@ -1,0 +1,2 @@
+TRUNCATE TABLE test_table;
+ALTER SEQUENCE seq_name RESTART WITH 1;
