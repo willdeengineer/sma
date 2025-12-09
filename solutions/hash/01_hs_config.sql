@@ -1,0 +1,1 @@
+tabelnaam, primary key kolommen, foreign key kolommen
