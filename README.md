@@ -11,7 +11,7 @@ cd sma
 ```
 
 ## Gebruik
-Iedere oplossing moet eerst geconfigureerd worden voordat de accelerator kan worden toegepast. Dit doe je door de stappen te volgen in de config van elke oplossing, bijvoorbeeld `01_hs_config.sql` voor de hash oplossing, `01_sm_config.sql` voor de streams oplossing, of `01_ts_config.sql` voor de timestamp oplossing. Hierna kan je de setup volgen in de setup, zoals `02_hs_setup.sql`, `02_st_setup.sql`, of `02_ts_setup.sql`.
+Iedere oplossing moet eerst geconfigureerd worden voordat de accelerator kan worden toegepast. Dit doe je door de stappen te volgen in de `config.sql`. Hierna kan je de setup volgen in de setup, zoals `02_hs_setup.sql`, `02_st_setup.sql`, of `02_ts_setup.sql`.
 
 ## Structuur
 - `/solutions`        - De verschillende Proof of Technology oplossingen
@@ -19,3 +19,4 @@ Iedere oplossing moet eerst geconfigureerd worden voordat de accelerator kan wor
     - `/streams`      - PoT d.m.v. Streams & Tasks
     - `/timestamp`    - PoT d.m.v. Timestamps
 - `/tests`            - Tests, benchmarks & resultaten daarvan
+

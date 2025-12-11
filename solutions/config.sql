@@ -8,6 +8,7 @@ CREATE OR REPLACE TABLE config (
 
 TRUNCATE TABLE config;
 
+-- Voeg hier in values alle tabellen toe die je wilt gebruiken.
 INSERT INTO config (table_name, primary_key_columns, foreign_key_columns)
 VALUES
     ('sales_detail', 'sale_detail_id', 'product_id,sale_id'),
