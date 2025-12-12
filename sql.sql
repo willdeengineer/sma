@@ -1,1 +1,7 @@
-call find_duplicates();
+
+CALL merge_non_duplicates();
+TRUNCATE TABLE STAGING.EmployeeSalary;
+
+
+SELECT COUNT(*) AS TOTAL_ROWS FROM STAGING.EmployeeSalary;
+SELECT COUNT(*) AS TOTAL_ROWS FROM PUBLIC.EmployeeSalary;
