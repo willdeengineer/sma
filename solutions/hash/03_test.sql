@@ -1,0 +1,73 @@
+
+SET run_id = (SELECT MAX(RUN_ID) FROM STAGE_ENTITY);
+
+-- Duplicaten check in staging
+SELECT ENTITY_ID, COUNT(*) AS found, COUNT(DISTINCT ROW_HASH) AS distinct_hashes, RUN_ID
+FROM STAGE_ENTITY
+WHERE RUN_ID = $run_id
+GROUP BY ENTITY_ID, RUN_ID
+HAVING COUNT(*) > 1 OR COUNT(DISTINCT ROW_HASH) > 1
+ORDER BY ENTITY_ID;
+-- Duplicaten in staging klaar
+
+-- Duplicaten check in staging met join naar target
+SELECT s.ENTITY_ID, COUNT(*) AS found, COUNT(DISTINCT s.ROW_HASH) AS distinct_hashes
+FROM TARGET_ENTITY t  JOIN STAGE_ENTITY s
+  ON t.ENTITY_ID = s.ENTITY_ID
+WHERE s.RUN_ID = $run_id
+GROUP BY s.ENTITY_ID
+HAVING COUNT(*) > 1 OR COUNT(DISTINCT s.ROW_HASH) > 1
+ORDER BY s.ENTITY_ID;
+-- Duplicaten in staging met join naar target klaar
+
+-- Inserts detecteren
+SELECT s.ENTITY_ID, s.ROW_HASH, s.NAME, s.SALARY
+FROM STAGE_ENTITY s
+WHERE s.RUN_ID = $run_id
+  AND NOT EXISTS (
+    SELECT 1
+    FROM TARGET_ENTITY t
+    WHERE t.ENTITY_ID = s.ENTITY_ID
+      AND t.IS_ACTIVE = TRUE
+  );
+-- Inserts detecteren klaar
+
+-- Updates detecteren
+SELECT s.ENTITY_ID, s.ROW_HASH, s.NAME, s.SALARY
+FROM STAGE_ENTITY s
+JOIN TARGET_ENTITY t
+  ON t.ENTITY_ID = s.ENTITY_ID
+WHERE s.RUN_ID = $run_id
+  AND t.IS_ACTIVE = TRUE
+  AND t.ROW_HASH <> s.ROW_HASH;
+-- Updates detecteren klaar
+
+-- Deletes detecteren
+SELECT t.ENTITY_ID, t.ROW_HASH, t.NAME, t.SALARY, t.START_TS
+FROM TARGET_ENTITY t
+WHERE t.IS_ACTIVE = TRUE
+  AND NOT EXISTS (
+    SELECT 1
+    FROM STAGE_ENTITY s
+    WHERE s.RUN_ID   = $run_id
+      AND s.ENTITY_ID = t.ENTITY_ID
+  );
+-- Deletes detecteren klaar
+
+-- Aantal resultaten bekijken
+SELECT *
+FROM TARGET_ENTITY ORDER BY ENTITY_ID;
+
+SELECT *
+FROM STAGE_ENTITY ORDER BY ENTITY_ID;
+
+SELECT 
+    COUNT(t.ENTITY_ID) AS TARGET_ROWS,
+    COUNT(s.ENTITY_ID) AS STAGE_ROWS
+FROM TARGET_ENTITY t
+LEFT JOIN STAGE_ENTITY s
+    ON t.ENTITY_ID = s.ENTITY_ID AND s.RUN_ID = $run_id;
+    
+
+USE SCHEMA TEST;
+CALL TEST_CDC();

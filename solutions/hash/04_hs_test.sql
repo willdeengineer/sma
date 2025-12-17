@@ -1,1 +1,0 @@
-CALL insert_if_different();
