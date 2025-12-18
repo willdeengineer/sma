@@ -1,18 +1,26 @@
-TRUNCATE TABLE RUN_LOG;
-TRUNCATE TABLE ERROR_LOG;
+USE DATABASE DUP_DB;
+USE SCHEMA TEST;
 
--- =====================================
--- Dataset 1 eerste run
--- =====================================
+--
+-- Reset
+--
+CREATE OR REPLACE SEQUENCE RUN_SEQ START WITH 1 INCREMENT BY 1 ORDER;
 TRUNCATE TABLE STAGE_ENTITY;
 TRUNCATE TABLE TARGET_ENTITY;
+TRUNCATE TABLE ERROR_LOG;
+TRUNCATE TABLE RUN_LOG;
+
+
+-------------------------------------------------
+-- Dataset 1 eerste run (met inserts en duplicaten)
+-------------------------------------------------
 
 SET run_id = RUN_SEQ.NEXTVAL;
 SELECT $run_id;
 
 INSERT INTO STAGE_ENTITY (RUN_ID, ENTITY_ID, NAME, SALARY, ROW_HASH)
 SELECT $run_id, 'E00000001', 'John Doe', 5000, SHA2(UPPER(CONCAT_WS('|', 'E00000001', 'John Doe', '5000')), 256) UNION ALL
-SELECT $run_id, 'E00000001', 'John Doe', 5000, SHA2(UPPER(CONCAT_WS('|', 'E00000001', 'John Doe', '5000')), 256) UNION ALL -- Duplicaat
+SELECT $run_id, 'E00000001', 'John Doe', 5000, SHA2(UPPER(CONCAT_WS('|', 'E00000001', 'John Doe', '5000')), 256) UNION ALL
 SELECT $run_id, 'E00000002', 'Jane Smith', 6000, SHA2(UPPER(CONCAT_WS('|', 'E00000002', 'Jane Smith', '6000')), 256) UNION ALL
 SELECT $run_id, 'E00000003', 'Bob Johnson', 4500, SHA2(UPPER(CONCAT_WS('|', 'E00000003', 'Bob Johnson', '4500')), 256) UNION ALL
 SELECT $run_id, 'E00000004', 'Alice Brown', 7000, SHA2(UPPER(CONCAT_WS('|', 'E00000004', 'Alice Brown', '7000')), 256) UNION ALL
@@ -29,9 +37,10 @@ SELECT $run_id, 'E00000014', 'Mia Harris', 4900, SHA2(UPPER(CONCAT_WS('|', 'E000
 SELECT $run_id, 'E00000014', 'Mia Harris', 5100, SHA2(UPPER(CONCAT_WS('|', 'E00000014', 'Mia Harris', '5100')), 256) UNION ALL
 SELECT $run_id, 'E00000015', 'Noah Clark', 7200, SHA2(UPPER(CONCAT_WS('|', 'E00000015', 'Noah Clark', '7200')), 256);
 
--- =====================================
--- DATASET 2: Tweede run (met wijzigingen)
--- =====================================
+-------------------------------------------------
+-- DATASET 2 tweede run (met inserts, updates, deletes))
+-------------------------------------------------
+TRUNCATE TABLE STAGE_ENTITY;
 SET run_id = RUN_SEQ.NEXTVAL;
 
 INSERT INTO STAGE_ENTITY (RUN_ID, ENTITY_ID, NAME, SALARY, ROW_HASH)
