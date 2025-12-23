@@ -21,6 +21,7 @@ SELECT $run_id;
 INSERT INTO STAGE_ENTITY (RUN_ID, ENTITY_ID, NAME, SALARY, ROW_HASH)
 SELECT $run_id, 'E00000001', 'John Doe', 5000, SHA2(UPPER(CONCAT_WS('|', 'E00000001', 'John Doe', '5000')), 256) UNION ALL
 SELECT $run_id, 'E00000001', 'John Doe', 5000, SHA2(UPPER(CONCAT_WS('|', 'E00000001', 'John Doe', '5000')), 256) UNION ALL
+SELECT $run_id, 'E00000001', 'John Doe', 5000, SHA2(UPPER(CONCAT_WS('|', 'E00000001', 'John Doe', '5000')), 256) UNION ALL
 SELECT $run_id, 'E00000002', 'Jane Smith', 6000, SHA2(UPPER(CONCAT_WS('|', 'E00000002', 'Jane Smith', '6000')), 256) UNION ALL
 SELECT $run_id, 'E00000003', 'Bob Johnson', 4500, SHA2(UPPER(CONCAT_WS('|', 'E00000003', 'Bob Johnson', '4500')), 256) UNION ALL
 SELECT $run_id, 'E00000004', 'Alice Brown', 7000, SHA2(UPPER(CONCAT_WS('|', 'E00000004', 'Alice Brown', '7000')), 256) UNION ALL
@@ -35,7 +36,10 @@ SELECT $run_id, 'E00000012', 'Kate Thomas', 6500, SHA2(UPPER(CONCAT_WS('|', 'E00
 SELECT $run_id, 'E00000013', 'Leo White', 5900, SHA2(UPPER(CONCAT_WS('|', 'E00000013', 'Leo White', '5900')), 256) UNION ALL
 SELECT $run_id, 'E00000014', 'Mia Harris', 4900, SHA2(UPPER(CONCAT_WS('|', 'E00000014', 'Mia Harris', '4900')), 256) UNION ALL
 SELECT $run_id, 'E00000014', 'Mia Harris', 5100, SHA2(UPPER(CONCAT_WS('|', 'E00000014', 'Mia Harris', '5100')), 256) UNION ALL
+SELECT $run_id, 'E00000014', 'Mia Harris', 5100, SHA2(UPPER(CONCAT_WS('|', 'E00000014', 'Mia Harris', '5300')), 256) UNION ALL
 SELECT $run_id, 'E00000015', 'Noah Clark', 7200, SHA2(UPPER(CONCAT_WS('|', 'E00000015', 'Noah Clark', '7200')), 256);
+
+SELECT * FROM STAGE_ENTITY ORDER BY ENTITY_ID, SALARY;
 
 -------------------------------------------------
 -- DATASET 2 tweede run (met inserts, updates, deletes))

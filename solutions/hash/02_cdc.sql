@@ -14,8 +14,9 @@ USE SCHEMA TEST;
 --- 8️. Run loggen
 --- 9️. Output teruggeven
 -------------------------------------------------
+
 DECLARE
-  run_id NUMBER;
+  run_id NUMBER := 0;
   entity_name STRING := 'ENTITY';
   inserts_count NUMBER := 0;
   updates_count NUMBER := 0;
@@ -26,7 +27,7 @@ DECLARE
   error_count NUMBER := 0;
 BEGIN
 
-SELECT MAX(RUN_ID) INTO :run_id FROM STAGE_ENTITY;
+SELECT IFNULL(MAX(RUN_ID), 0) INTO :run_id FROM STAGE_ENTITY;
 
 -------------------------------------------------
 -- Geen wijziging detecteren
@@ -43,7 +44,7 @@ WHERE s.RUN_ID = run_id
   );
 
 -------------------------------------------------
--- Duplicate insert in staging detecteren
+-- Duplicate insert in STAGE_ENTITY detecteren
 -------------------------------------------------
 INSERT INTO ERROR_LOG (RUN_ID, ENTITY_NAME, ERROR_CODE, ERROR_ROW)
 SELECT
@@ -102,7 +103,7 @@ WHERE s.RUN_ID = run_id
 inserts_count := SQLROWCOUNT;
 
 -------------------------------------------------
--- Duplicate update in staging detecteren
+-- Duplicate update in STAGE_ENTITY detecteren
 -------------------------------------------------
 INSERT INTO ERROR_LOG (RUN_ID, ENTITY_NAME, ERROR_CODE, ERROR_ROW)
 SELECT
@@ -128,7 +129,7 @@ WHERE s.RUN_ID = run_id
 dup_update_count := SQLROWCOUNT;
 
 -------------------------------------------------
--- Oude actieve versie afsluiten (bij updates)
+-- Oude IS_ACTIVE versie afsluiten (bij updates)
 -------------------------------------------------
 UPDATE TARGET_ENTITY t
 SET
@@ -217,15 +218,20 @@ VALUES (
 -------------------------------------------------
 -- Output weergeven
 -------------------------------------------------
-RETURN OBJECT_CONSTRUCT(
-    'RUN_ID', :run_id,
-    'INSERTS', :inserts_count,
-    'UPDATES', :updates_count,
-    'DELETES', :deletes_count,
-    'DUP_INSERT', :dup_insert_count,
-    'DUP_UPDATE', :dup_update_count,
-    'DUP_NO_CHANGE', :dup_no_change_count,
-    'ERRORS', :error_count
+LET result RESULTSET := (
+    SELECT
+        :run_id AS RUN_ID,
+        :entity_name AS ENTITY_NAME,
+        :inserts_count AS INSERTS,
+        :updates_count AS UPDATES,
+        :deletes_count AS DELETES,
+        :dup_insert_count AS DUPLICATE_INSERTS,
+        :dup_update_count AS DUPLICATE_UPDATES,
+        :dup_no_change_count AS NO_CHANGES,
+        :error_count AS TOTAL_ERRORS,
+        CURRENT_TIMESTAMP() AS COMPLETED_AT
 );
+
+RETURN TABLE(result);
 
 END;
