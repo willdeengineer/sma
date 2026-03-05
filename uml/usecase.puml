@@ -1,0 +1,54 @@
+@startuml usecase.puml
+left to right direction
+skinparam packageStyle rectangle
+
+actor Klant
+actor "Migratie Engineer" as MigratieEngineer
+actor "Snowflake Datawarehouse" as Snowflake
+actor "CDC component" as CDC
+
+rectangle "Proces" {
+
+  usecase "Strategie bepalen (CONTINUE of STOP bij error, SOFT of HARD delete)" as UC_Strategy
+
+  usecase "Brondata inladen" as UC_Load
+  usecase "Data valideren" as UC_Validate
+
+  usecase "CDC run starten" as UC_Run
+  usecase "Changes detecteren" as UC_Detect
+  usecase "Inserts verwerken" as UC_Insert
+  usecase "Updates verwerken" as UC_Update
+  usecase "Deletes verwerken" as UC_Delete
+
+  usecase "Configuraties beheren" as UC_Config
+  usecase "Entities configureren" as UC_EntityConfig
+  usecase "Runs monitoren" as UC_Monitor
+  usecase "Fouten afhandelen" as UC_Error
+}
+
+' --- Relaties actoren ---
+Klant --> UC_Strategy
+
+MigratieEngineer --> UC_Load
+MigratieEngineer --> UC_Run
+MigratieEngineer --> UC_Config
+MigratieEngineer --> UC_Monitor
+
+CDC --> UC_Run
+Snowflake --> UC_Load
+Snowflake --> UC_Run
+
+
+UC_Load --> UC_Validate : <<include>>
+
+UC_Run --> UC_Detect : <<include>>
+UC_Detect --> UC_Insert : <<include>>
+UC_Detect --> UC_Update : <<include>>
+UC_Detect --> UC_Delete : <<include>>
+
+UC_Config --> UC_EntityConfig : <<include>>
+
+UC_Run ..> UC_Error : <<extend>>
+UC_Monitor ..> UC_Error : <<extend>>
+
+@enduml

@@ -1,0 +1,16 @@
+
+@startuml lvl1.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+LAYOUT_WITH_LEGEND()
+title C4 level 1 — Context
+
+Person(dev, "Engineer", "Configureert, beheert en voert het CDC proces uit")
+System(SystemCDC, "Snowflake CDC component", "Proof of Technology: configureerbaar CDC proces.")
+System_Ext(SourceSystems, "Brondata", "Bestanden/Tabellen")
+System_Ext(Snowflake, "Snowflake", "Warehouses, schemas, SQL & Python connector")
+
+Rel(dev, SystemCDC, "Beheer en uitvoer", "SQL scripts / Python scripts")
+Rel(SourceSystems, SystemCDC, "Leveren brondata")
+Rel(SystemCDC, Snowflake, "Voert CDC proces uit: leest/schrijft STAGING, TARGET en LOGS")
+
+@enduml

@@ -1,0 +1,26 @@
+
+@startuml lvl2.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_WITH_LEGEND()
+title C4 level 2 — Containers
+
+Person(dev, "Engineer")
+System_Boundary(sys, "Snowflake CDC component") {
+
+  ContainerDb(Staging, "STAGING", "Snowflake schema STAGE_*", "Brondata met RUN_ID en ROW_HASH")
+  ContainerDb(Target, "TARGET", "Snowflake schema TARGET_*", "Doeltabel IS_ACTIVE, START_TS, END_TS, CDC_OPERATION")
+  ContainerDb(ConfigLog, "CDC", "Snowflake schema", "CDC_CONFIG, RUN_LOG, ERROR_LOG")
+  Container(CDCProc, "CDC Proces", "Snowflake", "Implementeert CDC logica en verwerkt data van STAGING naar TARGET" )
+}
+
+System_Ext(SourceSystems, "Bron")
+
+Rel(dev, ConfigLog, "Voegt configuratie toe", "INSERT INTO CDC_CONFIG")
+Rel(dev, CDCProc, "Start CDC proces", "SQL run/Python run")
+Rel(SourceSystems, Staging, "Levert brondata")
+Rel(CDCProc, Staging, "Haalt data op", "SELECT")
+Rel(CDCProc, ConfigLog, "Leest CDC_CONFIG", "SELECT")
+Rel(CDCProc, Target, "Schrijft inserts/updates/deletes", "INSERT/UPDATE/DELETE")
+Rel(CDCProc, ConfigLog, "Schrijft RUN_LOG en ERROR_LOG", "INSERT")
+
+@enduml

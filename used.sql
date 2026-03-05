@@ -10,3 +10,8 @@ update sales_detail
 
 -- Selecteert alle rijen uit een stream
 select * from stream_name;
+
+PUT 'file://C:/Users/wmeijden/OneDrive - Capgemini/Desktop/customer.csv' @entity_stage AUTO_COMPRESS=TRUE OVERWRITE=TRUE;
+
+LIST @entity_stage;
+

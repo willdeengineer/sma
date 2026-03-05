@@ -1,0 +1,67 @@
+USE DATABASE CDC_TEST_DB;
+USE SCHEMA CDC;
+
+CREATE OR REPLACE PROCEDURE CDC.CDC_RUN()
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+DECLARE
+    c1 CURSOR FOR SELECT CONFIG_ID FROM CDC.CDC_CONFIG WHERE IS_ACTIVE = TRUE;
+    v_config_id INT;
+    v_run_id INT;
+BEGIN
+    SELECT COALESCE(MAX(RUN_ID), 0) + 1 INTO :v_run_id FROM LOGGING.RUN_LOG;
+
+    INSERT INTO LOGGING.RUN_LOG (RUN_ID, START_TS, STATUS)
+    VALUES (:v_run_id, CURRENT_TIMESTAMP(), 'RUNNING');
+
+  FOR rec IN c1 DO
+    v_config_id := rec.CONFIG_ID;  -- haal de waarde op
+    CALL CDC_PROCESS(:v_config_id, :v_run_id);
+  END FOR;
+
+  UPDATE LOGGING.RUN_LOG
+  SET
+    ROWS_INSERTED = (
+          SELECT COALESCE(SUM(ROWS_INSERTED),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    ROWS_UPDATED = (
+          SELECT COALESCE(SUM(ROWS_UPDATED),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    ROWS_DELETED = (
+          SELECT COALESCE(SUM(ROWS_DELETED),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    ROWS_UNCHANGED = (
+          SELECT COALESCE(SUM(ROWS_UNCHANGED),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    DUPLICATE_INSERTS = (
+          SELECT COALESCE(SUM(DUPLICATE_INSERTS),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    DUPLICATE_UPDATES = (
+          SELECT COALESCE(SUM(DUPLICATE_UPDATES),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    KEY_ERRORS = (
+          SELECT COALESCE(SUM(KEY_ERRORS),0)
+          FROM LOGGING.RUN_ENTITY_LOG
+          WHERE RUN_ID = :v_run_id
+    ),
+    END_TS = CURRENT_TIMESTAMP(),
+    STATUS = 'COMPLETED'
+  WHERE RUN_ID = :v_run_id;
+
+  RETURN 'Run ' || v_run_id || ' succesvol voltooid.';
+END;
+$$;
