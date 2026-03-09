@@ -1,10 +1,30 @@
+-- -------------------------------------------------
+-- Setup SQL voor CDC proces
+-- Hiermee worden de benodigde database, schemas en tabellen aangemaakt.
+--
+-- Notes:
+-- - Hybrid tables zijn voor CONFIG tabellen en LOG tabellen best practice, alleen deze zijn niet toegankelijk in een trial account.
+-- -------------------------------------------------
+
+-- -------------------------------------------------
+-- 1. Database en schemas aanmaken
+-- Hier worden de database en schemas aangemaakt die we nodig hebben voor het CDC proces.
+-- -------------------------------------------------
+CREATE DATABASE IF NOT EXISTS CDC_TEST_DB;
 USE DATABASE CDC_TEST_DB;
+
+CREATE SCHEMA IF NOT EXISTS CDC;
+CREATE SCHEMA IF NOT EXISTS LOGGING;
+CREATE SCHEMA IF NOT EXISTS STAGING;
+CREATE SCHEMA IF NOT EXISTS TARGET;
+
+-- -------------------------------------------------
+-- 2. Config tabel aanmaken in schema CDC
+-- Hier wordt de CDC_CONFIG tabel aangemaakt waarin de configuratie voor het CDC proces wordt opgeslagen.
+-- De config bevat informatie over een entiteit: de naam van bron en doeltabel, de primaire sleutel en de strategieen voor deletes, errors en updates.
+-- -------------------------------------------------
 USE SCHEMA CDC;
 
--- Hybrid tables zijn voor CONFIG tabellen en LOG tabellen best practice, alleen deze zijn niet toegankelijk in een trial account. Daarom gebruiken we gewone tabellen.
--- -------------------------------------------------
--- Config tabel
--- -------------------------------------------------
 CREATE OR REPLACE TABLE CDC_CONFIG (
   CONFIG_ID NUMBER AUTOINCREMENT, -- unieke config identifier
   ENTITY_NAME STRING NOT NULL, -- bv. 'ENTITY', 'EMPLOYEE', 'ORDER'
@@ -18,11 +38,13 @@ CREATE OR REPLACE TABLE CDC_CONFIG (
   PRIMARY KEY (CONFIG_ID)
 );
 
--------------------------------------------------
--- Log tabellen
--------------------------------------------------
+-- -------------------------------------------------
+-- 3. Log tabellen aanmaken
+-- Hier worden de tabellen in het LOGGING schema aangemaakt waarin we de resultaten van het CDC proces loggen (aantal inserts, updates, deletes, errors, etc.)..
+-- -------------------------------------------------
 USE SCHEMA LOGGING;
 
+-- Logt per run het aantal inserts, updates, deletes, etc.
 CREATE OR REPLACE TABLE RUN_LOG (
   RUN_ID NUMBER NOT NULL, -- bv. 1
   START_TS TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(), -- TIMESTAMP van run start
@@ -35,23 +57,26 @@ CREATE OR REPLACE TABLE RUN_LOG (
   DUPLICATE_UPDATES NUMBER DEFAULT 0,  -- duplicaat gevonden tijdens update nieuwe waarde
   KEY_ERRORS NUMBER DEFAULT 0, -- aantal key errors (bv. null key)
   STATUS STRING DEFAULT 'FAILED', -- 'RUNNING', 'COMPLETED', 'FAILED'
+  PRIMARY KEY (RUN_ID)
+);
+
+-- Logt per run en per entity het aantal inserts, updates, deletes, etc.
+CREATE OR REPLACE TABLE RUN_ENTITY_LOG (
+    RUN_ID INT, -- bv. 1
+    START_TS TIMESTAMP_NTZ, -- TIMESTAMP van start verwerking entity
+    END_TS TIMESTAMP_NTZ, -- TIMESTAMP van einde verwerking entity
+    ENTITY_NAME STRING, -- bv. 'Employee'
+    ROWS_INSERTED INT, -- aantal inserts van een entity
+    ROWS_UPDATED INT, -- aantal updates van een entity
+    ROWS_DELETED INT, -- aantal deletes van een entity
+    ROWS_UNCHANGED INT, -- hoeveel rijen zijn ongewijzigd
+    DUPLICATE_INSERTS INT, -- duplicaat gevonden tijdens insert nieuwe waarde
+    DUPLICATE_UPDATES INT, -- dubbele update gevonden tijdens update nieuwe waarde
+    KEY_ERRORS INT, -- aantal key errors (bv. null key of lege key)
     PRIMARY KEY (RUN_ID)
 );
 
-CREATE OR REPLACE TABLE RUN_ENTITY_LOG (
-    RUN_ID INT,
-    START_TS TIMESTAMP_NTZ,
-    END_TS TIMESTAMP_NTZ,
-    ENTITY_NAME STRING,
-    ROWS_INSERTED INT,
-    ROWS_UPDATED INT,
-    ROWS_DELETED INT,
-    ROWS_UNCHANGED INT,
-    DUPLICATE_INSERTS INT,
-    DUPLICATE_UPDATES INT,
-    KEY_ERRORS INT
-);
-
+-- Logt details van fouten die optreden tijdens het CDC proces
 CREATE OR REPLACE TABLE RUN_ERROR_LOG (
   ERROR_ID NUMBER AUTOINCREMENT, -- unieke error identifier
   RUN_ID NUMBER NOT NULL, -- bv. 1
@@ -62,12 +87,15 @@ CREATE OR REPLACE TABLE RUN_ERROR_LOG (
   PRIMARY KEY (ERROR_ID)
 );
 
--------------------------------------------------
--- Stage tabel (hier wordt brondata ingeladen)
--------------------------------------------------
+-- -------------------------------------------------
+-- 4. Stage schema 
+-- Hier wordt brondata ingeladen.
+-- Voor testen maken we hier 3 tabellen aan: S_Employee, S_Customer, S_Order.
+-- -------------------------------------------------
 USE SCHEMA STAGING;
+
 CREATE OR REPLACE TABLE S_Employee (
-  ROW_HASH STRING, -- bv. 'abc123def456'
+  -- ROW_HASH STRING, -- bv. 'abc123def456'
   -- Velden
   EMPLOYEE_ID STRING, -- bv. 'R001'
   SALARY NUMBER, -- bv. 5000
@@ -76,27 +104,30 @@ CREATE OR REPLACE TABLE S_Employee (
 );
 
 CREATE OR REPLACE TABLE S_Customer (
-  ROW_HASH STRING,
-  CUSTOMER_ID STRING,
-  CUSTOMER_NAME STRING,
-  EMAIL STRING,
-  COUNTRY STRING,
-  REGISTRATION_DATE DATE
+  -- ROW_HASH STRING, -- bv. 'abc123def456'
+  -- Velden
+  CUSTOMER_ID STRING, -- bv. 'C001'
+  CUSTOMER_NAME STRING, -- bv. 'John Doe'
+  EMAIL STRING, -- bv. 'john.doe@example.com'
+  COUNTRY STRING, -- bv. 'NL', 'BE', 'DE'
+  REGISTRATION_DATE DATE -- bv. '1-1-2026'
 );
 
 CREATE OR REPLACE TABLE S_Order (
-  ROW_HASH STRING,
-  ORDER_ID STRING,
-  CUSTOMER_ID STRING,
-  ORDER_DATE DATE,
-  TOTAL_AMOUNT NUMBER,
-  STATUS STRING
+  -- ROW_HASH STRING, -- bv. 'abc123def456'
+  -- Velden
+  ORDER_ID STRING, -- bv. 'O001'
+  CUSTOMER_ID STRING, -- bv. 'C001'
+  ORDER_DATE DATE, -- bv. '1-1-2026'
+  TOTAL_AMOUNT NUMBER, -- bv. 100.50
+  STATUS STRING -- bv. 'PENDING', 'COMPLETED', 'CANCELLED'
 );
 
-
--------------------------------------------------
--- Target tabel
-------------------------------------------------- 
+-- -------------------------------------------------
+-- 5. Target schema
+-- Hier komt de data in wanneer het CDC proces voltooid is.
+-- Voor testen maken we hier 3 tabellen aan: T_Employee, T_Customer, T_Order.
+-- ------------------------------------------------- 
 USE SCHEMA TARGET;
 
 CREATE OR REPLACE TABLE T_Employee (
@@ -119,6 +150,7 @@ CREATE OR REPLACE TABLE T_Customer (
   END_TS TIMESTAMP_NTZ,
   IS_ACTIVE BOOLEAN DEFAULT TRUE,
   CDC_OPERATION STRING NOT NULL,
+  -- Velden
   CUSTOMER_ID STRING,
   CUSTOMER_NAME STRING,
   EMAIL STRING,
@@ -133,6 +165,7 @@ CREATE OR REPLACE TABLE T_Order (
   END_TS TIMESTAMP_NTZ,
   IS_ACTIVE BOOLEAN DEFAULT TRUE,
   CDC_OPERATION STRING NOT NULL,
+  -- Velden
   ORDER_ID STRING,
   CUSTOMER_ID STRING,
   ORDER_DATE DATE,
@@ -141,7 +174,7 @@ CREATE OR REPLACE TABLE T_Order (
   PRIMARY KEY (ORDER_ID, START_TS)
 );
 
--------------------------------------------------
+-- -------------------------------------------------
 -- Clustering voor performance
--------------------------------------------------
+-- -------------------------------------------------
 -- ALTER TABLE TARGET_ENTITY CLUSTER BY (EMPLOYEE_ID, ROW_HASH);

@@ -1,26 +1,68 @@
+
+-- -------------------------------------------------
+-- Procedure om het CDC proces te runnen.
+-- Deze procedure kan worden aangeroepen met CALL CDC_RUN() en voert het CDC proces uit voor alle entiteiten die voorkomen in CDC_CONFIG.
+-- -------------------------------------------------
+
+-- -------------------------------------------------
+-- 1. Database en schema gebruiken
+-- -------------------------------------------------
 USE DATABASE CDC_TEST_DB;
 USE SCHEMA CDC;
 
-CREATE OR REPLACE PROCEDURE CDC.CDC_RUN()
+
+-- -------------------------------------------------
+-- 2. CDC_RUN procedure aanmaken
+-- Hier wordt de procedure CDC_PROCESS aangemaakt die het daadwerkelijke CDC proces uitvoert.
+-- Deze procedure wordt per entiteit uitgevoerd en verwerkt de brondata volgens de configuratie in CDC_CONFIG.
+-- -------------------------------------------------
+CREATE OR REPLACE PROCEDURE CDC_RUN()
 RETURNS STRING
 LANGUAGE SQL
 AS
 $$
 DECLARE
-    c1 CURSOR FOR SELECT CONFIG_ID FROM CDC.CDC_CONFIG WHERE IS_ACTIVE = TRUE;
+    c1 CURSOR FOR SELECT CONFIG_ID FROM CDC_CONFIG WHERE IS_ACTIVE = TRUE;
+    c2 CURSOR FOR SELECT CONFIG_ID FROM CDC_CONFIG WHERE IS_ACTIVE = TRUE;
+
     v_config_id INT;
     v_run_id INT;
+    v_source_table STRING;
+
+    v_sql STRING;
 BEGIN
+    -- Run ID bepalen (max RUN_ID + 1) en run log initialiseren
     SELECT COALESCE(MAX(RUN_ID), 0) + 1 INTO :v_run_id FROM LOGGING.RUN_LOG;
 
     INSERT INTO LOGGING.RUN_LOG (RUN_ID, START_TS, STATUS)
     VALUES (:v_run_id, CURRENT_TIMESTAMP(), 'RUNNING');
 
-  FOR rec IN c1 DO
-    v_config_id := rec.CONFIG_ID;  -- haal de waarde op
-    CALL CDC_PROCESS(:v_config_id, :v_run_id);
-  END FOR;
+    
+    FOR record IN c1 DO
+        v_config_id := record.CONFIG_ID;
 
+        SELECT SOURCE_TABLE
+        INTO :v_source_table
+        FROM CDC_CONFIG
+        WHERE CONFIG_ID = :v_config_id;
+
+        -- kolom toevoegen als die niet bestaat
+        v_sql := 'ALTER TABLE ' || v_source_table || ' ADD COLUMN IF NOT EXISTS ROW_HASH STRING';
+        EXECUTE IMMEDIATE :v_sql;
+
+        -- hash berekenen
+        v_sql := 'UPDATE ' || v_source_table || ' SET ROW_HASH = SHA2(TO_VARCHAR(OBJECT_CONSTRUCT(*)),256) WHERE ROW_HASH IS NULL';
+        EXECUTE IMMEDIATE :v_sql;
+
+    END FOR;
+    
+    -- Voor elke actieve config in het CDC_CONFIG wordt CDC_PROCESS procedure aangeroepen die het CDC proces uitvoert voor die entiteit.
+    FOR record IN c2 DO
+        v_config_id := record.CONFIG_ID;
+        CALL CDC_PROCESS(:v_config_id, :v_run_id);
+    END FOR;
+
+  -- Na het uitvoeren van CDC_PROCESS voor alle entiteiten worden de totalen van inserts, updates, deletes, etc. in RUN_LOG bijgewerkt op basis van de gegevens in RUN_ENTITY_LOG.
   UPDATE LOGGING.RUN_LOG
   SET
     ROWS_INSERTED = (
@@ -62,6 +104,6 @@ BEGIN
     STATUS = 'COMPLETED'
   WHERE RUN_ID = :v_run_id;
 
-  RETURN 'Run ' || v_run_id || ' succesvol voltooid.';
+  RETURN 'Run met id ' || v_run_id || ' is klaar.';
 END;
 $$;
