@@ -17,7 +17,7 @@ cd sma
 
 ## Doel
 
-Het CDC proces leest data uit `STAGING` en vergelijkt records in `TARGET` en verwerkt:
+Het CDC proces leest data uit `STAGING`, vergelijkt records in `TARGET`, verwerkt deze data en legt wijzigingen vast:
 
 - inserts
 - updates
