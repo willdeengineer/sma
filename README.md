@@ -9,6 +9,12 @@ Dit project is een Proof of Technology van het Change Data Capture (CDC) proces 
 
  Het proces is volledig configureerbaar zonder dat code gewijzigd hoeft te worden.
 
+ ## Installatie
+ ```
+git clone https://github.com/willdeengineer/sma.git
+cd sma
+ ```
+
 ## Doel
 
 Het CDC proces leest data uit `STAGING` en vergelijkt records in `TARGET` en verwerkt:
