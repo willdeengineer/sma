@@ -1,0 +1,49 @@
+-- -------------------------------------------------
+-- Performance test scripts
+-- -------------------------------------------------
+
+-- -------------------------------------------------
+-- Inserts only
+-- -------------------------------------------------
+-- USE DATABASE CDC_SQL_DB;
+
+-- TRUNCATE TABLE STAGING.S_EMPLOYEE;
+-- TRUNCATE TABLE TARGET.T_EMPLOYEE;
+
+-- COPY INTO STAGING.S_EMPLOYEE (EMPLOYEE_ID, SALARY, MANAGER, DEPARTMENT)
+-- FROM @STAGING.MOCK_DATA
+-- FILES = ('S_Employee_10_rows.csv')
+-- FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1);
+
+-- USE DATABASE CDC_PYTHON_DB;
+
+-- TRUNCATE TABLE STAGING.S_EMPLOYEE;
+-- TRUNCATE TABLE TARGET.T_EMPLOYEE;
+
+-- COPY INTO STAGING.S_EMPLOYEE (EMPLOYEE_ID, SALARY, MANAGER, DEPARTMENT)
+-- FROM @STAGING.MOCK_DATA
+-- FILES = ('S_Employee_10_rows.csv')
+-- FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1);
+
+--- -------------------------------------------------
+-- Missende sleutels
+-- --------------------------------------------------
+USE DATABASE CDC_SQL_DB;
+
+TRUNCATE TABLE STAGING.S_EMPLOYEE;
+TRUNCATE TABLE TARGET.T_EMPLOYEE;
+
+COPY INTO STAGING.S_EMPLOYEE (EMPLOYEE_ID, SALARY, MANAGER, DEPARTMENT)
+FROM @STAGING.MOCK_DATA
+FILES = ('S_Employee_1000_rows_missing_keys.csv')
+FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1);
+
+USE DATABASE CDC_PYTHON_DB;
+
+TRUNCATE TABLE STAGING.S_EMPLOYEE;
+TRUNCATE TABLE TARGET.T_EMPLOYEE;
+
+COPY INTO STAGING.S_EMPLOYEE (EMPLOYEE_ID, SALARY, MANAGER, DEPARTMENT)
+FROM @STAGING.MOCK_DATA
+FILES = ('S_Employee_1000_rows_missing_keys.csv')
+FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1);

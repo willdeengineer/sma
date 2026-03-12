@@ -9,7 +9,7 @@
 ----------------------------------------------------
 -- 1. Database en schema gebruiken
 ----------------------------------------------------
-USE DATABASE CDC_TEST_DB;
+USE DATABASE CDC_SQL_DB;
 USE SCHEMA CDC;
 
 --------------------------------------------------
@@ -60,9 +60,9 @@ BEGIN
   AND IS_ACTIVE = TRUE;
    IF (v_entity IS NULL) THEN
     UPDATE LOGGING.RUN_LOG 
-    SET END_TS = CURRENT_TIMESTAMP(), STATUS = 'FAILED'
+    SET END_TS = CURRENT_TIMESTAMP(), STATUS = 'FAILED', ERROR_CODE = 'CONFIG_NOT_FOUND'
     WHERE RUN_ID = :v_runid;
-    RETURN 'Fout: config met id ' || config_id || ' niet gevonden of niet actief.';
+    RETURN 'Fout: config met id ' || config_id || ' niet gevonden.';
   END IF;
 
   -- Business kolommen van de entiteit ophalen (alle kolommen behalve kolommen die we gebruiken voor CDC logica: ROW_HASH, START_TS, END_TS, IS_ACTIVE, CDC_OPERATION en de primary key).
@@ -152,7 +152,7 @@ BEGIN
           AND (SELECT COUNT(*) FROM ' || v_source || ' s2
                WHERE s2.' || v_pk || ' = s.' || v_pk || ') = 1
       )';
-    EXECUTE IMMEDIATE v_sql;
+    EXECUTE IMMEDIATE v_sql; 
 
     v_sql := 'INSERT INTO ' || v_target || ' (ROW_HASH, START_TS, IS_ACTIVE, CDC_OPERATION, ' || v_pk || ', ' || v_business_columns || ')
       SELECT s.ROW_HASH, CURRENT_TIMESTAMP(), TRUE, ''U'', s.' || v_pk || ', ' ||

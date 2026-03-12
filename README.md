@@ -1,168 +1,192 @@
-# Snowflake CDC component
+# Snowflake CDC Component
 
-Dit Proof of Technology implementeert een configureerbaar Change Data Capture (CDC) proces in Snowflake.
+Dit project is een Proof of Technology van het Change Data Capture (CDC) proces in Snowflake, met twee varianten:
 
-## Installatie
-```bash
-# Clone de repository
-git clone https://github.com/willdeengineer/sma.git
-cd sma
+- SQL variant (stored procedure)
+- Python variant (jupyter notebook)
+
+ Beide varianten voeren het CDC proces uit.
+
+ Het proces is volledig configureerbaar zonder dat code gewijzigd hoeft te worden.
+
+## Doel
+
+Het CDC proces leest data uit `STAGING` en vergelijkt records in `TARGET` en verwerkt:
+
+- inserts
+- updates
+- deletes
+- datakwaliteitsfouten (voor nu alleen duplicaten en missende primaire sleutels)
+
+Alle runs en fouten worden gelogd in `LOGGING`.
+
+## Projectstructuur
+
+```text
+.
+├── README.md
+├── sql.sql
+├── helper/
+│   ├── clear.sql (leegmaken van een database en diens tabellen)
+│   ├── generate_mock.py (script om determenistische mock data te genereren)
+│   └── results.sql (script om de resultaten van runs te bekijken)
+├── mock_data/
+│   └── Verschillende mock data bestanden die zijn aangemaakt door generate_mock.py
+├── solutions/
+│   ├── python/
+│   │   ├── cdc_process.ipynb (het cdc proces in Python/Jupyter notebook)
+│   │   └── setup_py.sql (queries om de database, schema's en tabellen aan te maken)
+│   └── sql/
+│       ├── setup_sql.sql (queries om de database, schema's en tabellen aan te maken)
+│       ├── cdc_process.sql (queries om het cdc_proces procedure aan te maken)
+│       ├── cdc_run.sql (queries om de cdc_run procedure aan te maken)
+│       └── start.sql (query om een run te starten a.d.h.v. de procedures)
+├── tests/
+│   ├── data_quality_test.sql (queries om te testen op data kwaliteit)
+│   └── performance_test.sql (queries om te testen op performance)
+└── uml/
+    ├── lvl1.puml (oude architectuur)
+    ├── lvl2.puml (oude architectuur)
+    └── usecase.puml (oude usecase)
 ```
 
-## Overzicht
+## CDC component
 
-De oplossing bestaat uit de volgende onderdelen:
+### Configuratie (`CDC.CDC_CONFIG`)
 
-### 1. **CDC_CONFIG**
-Dit is een configuratietabel die bepaalt hoe het CDC proces werkt voor verschillende entiteiten:
+- `ENTITY_NAME`: naam van een entiteit
+- `SOURCE_TABLE`: brontabel, bijvoorbeeld `STAGING.S_Employee`
+- `TARGET_TABLE`: doeltabel, bijvoorbeeld `TARGET.T_Employee`
+- `PRIMARY_KEY_COLUMN`: primary key kolom
+- `DELETE_STRATEGY`: `SOFT` of `HARD`
+- `ERROR_STRATEGY`: `CONTINUE` of `STOP` (niet uitgewerkt)
+- `UPDATE_STRATEGY`: `HISTORY` of `OVERWRITE`
+- `IS_ACTIVE`: of de configuratie actief is en mee moet worden genomen in runs
 
-**Opties:**
-- **ENTITY_NAME**: Naam van de entiteit
-- **SOURCE_TABLE**: Naam van de bron tabel
-- **TARGET_TABLE**: Naam van de doel tabel (SCD Type 2)
-- **PRIMARY_KEY_COLUMN**: Primary key kolom van deze entiteit
-- **DELETE_STRATEGY**: 
-    - `SOFT`: Records blijven bestaan met `IS_ACTIVE = FALSE` en `END_TS` op einddatum
-    - `HARD`: Records worden fysiek verwijderd en bestaat dus niet meer in de doel tabel
-- **ERROR_STRATEGY**:
-    - `CONTINUE`: Log fouten en ga door met het proces
-    - `STOP`: Stop het proces onmiddellijk wanneer een fout wordt gedetecteerd
-- **IS_ACTIVE**: Of deze configuratie actief is of niet
+### Logging
 
-### 2. **RUN_LOG**
-Logging van elke CDC run:
+- `LOGGING.RUN_LOG`: alle belangrijke gegevens van een run, zoals start, eind, aantal inserts/updates/deletes etc.
+- `LOGGING.RUN_ENTITY_LOG`: statistieken per entiteit
+- `LOGGING.RUN_ERROR_LOG`: specifieke detailregels van fouten
 
-**Dit wordt getracked per run:**
-- Aantal inserts, updates, deletes
-- Aantal duplicaten en ongewijzigde records
-- Status (RUNNING, COMPLETED, FAILED) van een run
-- Duur van de run
-- Errors die hebben plaatsgevonden
+### Strategieen
 
-### 3. **ERROR_LOG**
-Error logging:
+#### Update strategie
+- `HISTORY` oude actieve rij afsluiten (`IS_ACTIVE = FALSE`, `END_TS`, `CDC_OPERATION = 'U'`), nieuwe versie toevoegen (`IS_ACTIVE = TRUE`, `START_TS`, `CDC_OPERATION = 'U'`)
+- `OVERWRITE` de actieve rij direct overschrijven
 
-**Error types:**
-- `DUPLICATE_INSERT`: Meerdere gelijke records in staging
-- `DUPLICATE_UPDATE`: Meerdere verschillende updates voor hetzelfde record
-- `CRITICAL`: Proces blokkerende fouten (TO DO)
+#### Delete strategie
+- `SOFT` record blijft bestaan met `CDC_OPERATION = 'D'` voor historie
+- `HARD` de actieve rij wordt "fysiek" verwijderd
 
-### 4. **CDC_PROCESS** Stored Procedure
-Stored procedure die werkt op basis van de configuratie.
+## Benodigdheden
 
-## Bestandsstructuur
+- Snowflake account
+- Warehouse
+- Voor Python variant:
+  - Python 3.14.4
+  - Jupyter
+  - snowflake-connector-python
+  - Voor mock data genereren: `pandas`, `numpy` (pandas installeert numpy vaak automatisch mee)
 
-### SQL component
+## Setup en run (SQL)
 
-```
-solutions/sql/
-├── setup.sql                 # Basis structuur (tables, sequences)
-├── loader.sql                # Data preparator (voegt run id en hash toe)
-├── cdc.sql                   # CDC_PROCESS stored procedure
-└── config.sql                # Configuratie voor entiteiten
-```
+Voer scripts uit in deze volgorde:
 
-### Python component
-
-```
-solutions/python/
-└── main.ipynb
-```
-
-## Opzetten & Configuratie
-
-### Setup
+### 1. Database, schema's en tabellen aanmaken
 
 ```sql
--- 1. Maak de basis structuur aan
-RUN setup.sql
-
--- 2. Configureer de entiteiten
-RUN config.sql
+-- file: solutions/sql/setup_sql.sql
 ```
 
-### Configuratie toevoegen (voorbeeld)
+### 2. CDC procedure aanmaken
 
 ```sql
-INSERT INTO CDC_CONFIG (
-        ENTITY_NAME,
-        SOURCE_TABLE,
-        TARGET_TABLE,
-        PRIMARY_KEY_COLUMNS,
-        HASH_COLUMN,
-        DELETE_STRATEGY,
-        ERROR_STRATEGY,
-        BUSINESS_COLUMNS,
-        IS_ACTIVE
+-- file: solutions/sql/cdc_process.sql
+```
+
+### 3. Run procedure aanmaken
+
+```sql
+-- file: solutions/sql/cdc_run.sql
+```
+
+### 4. Configuratie toevoegen (voorbeeld)
+
+```sql
+USE DATABASE CDC_SQL_DB
+
+INSERT INTO CDC.CDC_CONFIG (
+    CONFIG_ID, ENTITY_NAME, SOURCE_TABLE, TARGET_TABLE, PRIMARY_KEY_COLUMN,
+    DELETE_STRATEGY, ERROR_STRATEGY, UPDATE_STRATEGY, IS_ACTIVE
 ) VALUES (
-        'EMPLOYEE',
-        'STAGE_EMPLOYEE',
-        'TARGET_EMPLOYEE',
-        'EMPLOYEE_ID',
-        'ROW_HASH',
-        'SOFT',
-        'CONTINUE',
-        'NAME,DEPARTMENT,SALARY',
-        TRUE
+    1, 'Employee', 'STAGING.S_Employee', 'TARGET.T_Employee', 'EMPLOYEE_ID',
+    'SOFT', 'CONTINUE', 'HISTORY', TRUE
 );
 ```
 
-## CDC proces uitvoeren
+### 5. Brondata inladen in `STAGING` (handmatig of via `COPY INTO` vanuit bv. een stage)
+Hiervoor kan je de data uit mock_data gebruiken of zelf mock data genereren.
 
-### Data laden in staging
-
-### CDC proces starten
+### 6. Run starten
 
 ```sql
-CALL CDC_PROCESS_SQL('EMPLOYEE');
+-- file: solutions/sql/start.sql
 ```
 
-### Resultaat (voorbeeld)
+## Setup en run (Python)
 
-```
-RUN_ID | RUN_TS                  | ENTITY_NAME | INSERTS | UPDATES | DELETES | DUP_INSERT | DUP_UPDATE | DUP_NO_CHANGE | ERRORS | STATUS    | DURATION_SECONDS
--------|-------------------------|-------------|---------|---------|---------|------------|------------|---------------|--------|-----------|------------------
-1      | 2025-12-23 10:15:32.000 | EMPLOYEE    | 150     | 23      | 5       | 2          | 1          | 8             | 0      | COMPLETED | 45
-2      | 2025-12-24 10:15:32.000 | EMPLOYEE    | 23      | 2       | 8       | 0          | 1          | 1             | 4      | FAILED    | 32
-```
+### 1. Database objecten voor Python variant aanmaken:
 
-## Belangrijkste Features
-
-### 1. Delete strategy
-
-**SOFT delete**
 ```sql
-DELETE_STRATEGY = 'SOFT'
+-- file: solutions/python/setup_py.sql
 ```
-- `IS_ACTIVE` wordt `FALSE`
-- `CDC_OPERATION` wordt `'D'`
-- `END_TS` wordt een einddatum
-- Alle historische data blijft bewaard
-- Voor bv. auditing
 
-**HARD delete**
+### 2. Open notebook:
+
+```text
+solutions/python/cdc_process.ipynb
+```
+
+### 3. Pas de connectiegegevens aan
 ```sql
-DELETE_STRATEGY = 'HARD'
+conn = snowflake.connector.connect(
+    user="username",
+    password="pass",
+    account="account",
+    warehouse="warehouse",
+    database="CDC_PYTHON_DB",
+    role="SYSADMIN"
+)
 ```
-- Records worden fysiek verwijderd
-- Geen historische data beschikbaar
-- Voor data minimalisatie en/of wet en regelgevingen
 
-### 2. Error handling
+### 4. Installeer de dependencies
+`pip install snowflake-connector-python`
 
-**CONTINUE**
-```sql
-ERROR_STRATEGY = 'CONTINUE'
-```
-- Fouten worden gelogd in ERROR_LOG
-- Proces gaat door met volgende stappen
-- Geschikt voor productie met monitoring
+### 5. Voer notebookcellen van boven naar beneden uit (of klik op run all)
 
-**STOP**
-```sql
-ERROR_STRATEGY = 'STOP'
-```
-- Het proces stopt bij eerste gevonden fout
-- Rollback van wijzigingen
-- Geschikt voor kritieke data
+De notebook voert dezelfde stappen uit als SQL:
+
+- initialisatie
+- foutdetectie
+- inserts
+- updates
+- deletes
+- logging in `RUN_LOG`, `RUN_ENTITY_LOG`, `RUN_ERROR_LOG`
+
+## Test en helperbestanden
+
+- `tests/performance_test.sql`: testen van performance van de tool
+- `tests/data_quality_test.sql`: testen van data kwaliteit
+- `helper/generate_mock.py`: genereert employee mockdata (10 t/m 1.000.000 rijen)
+- `helper/clear.sql`: truncate scripts voor beide databases (`CDC_SQL_DB` en `CDC_PYTHON_DB`)
+- `helper/results.sql`: query om snelheid SQL versus Python te vergelijken
+
+## UML
+
+Voor de architectuur (c4 op 2 niveaus) en use case:
+
+- `uml/lvl1.puml`
+- `uml/lvl2.puml`
+- `uml/usecase.puml`
 

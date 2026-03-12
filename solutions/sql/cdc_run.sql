@@ -7,7 +7,7 @@
 -- -------------------------------------------------
 -- 1. Database en schema gebruiken
 -- -------------------------------------------------
-USE DATABASE CDC_TEST_DB;
+USE DATABASE CDC_SQL_DB;
 USE SCHEMA CDC;
 
 
@@ -50,7 +50,7 @@ BEGIN
         v_sql := 'ALTER TABLE ' || v_source_table || ' ADD COLUMN IF NOT EXISTS ROW_HASH STRING';
         EXECUTE IMMEDIATE :v_sql;
 
-        -- hash berekenen
+        -- Hash berekenen (SHA256) op basis van alle kolommen in de brondata.
         v_sql := 'UPDATE ' || v_source_table || ' SET ROW_HASH = SHA2(TO_VARCHAR(OBJECT_CONSTRUCT(*)),256) WHERE ROW_HASH IS NULL';
         EXECUTE IMMEDIATE :v_sql;
 

@@ -1,0 +1,11 @@
+EMPLOYEE_ID,SALARY,MANAGER,DEPARTMENT
+R000001,9270,Colin,Schoonmaak
+R000002,9603,Colin,Sales
+R000003,2860,Colin,Tester
+R000004,7390,Eva,Schoonmaak
+R000005,7226,Diana,Management
+R000006,7191,Colin,Sales
+R000007,5772,Eva,Schoonmaak
+R000008,5092,Bob,Tester
+R000009,7734,Diana,Tester
+R000010,8265,Bob,Engineering
