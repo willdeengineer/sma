@@ -28,6 +28,7 @@ DECLARE
     v_config_id INT;
     v_run_id INT;
     v_source_table STRING;
+    v_columns STRING;
 
     v_sql STRING;
 BEGIN
@@ -51,7 +52,7 @@ BEGIN
         EXECUTE IMMEDIATE :v_sql;
 
         -- Hash berekenen (SHA256) op basis van alle kolommen in de brondata.
-        v_sql := 'UPDATE ' || v_source_table || ' SET ROW_HASH = SHA2(TO_VARCHAR(OBJECT_CONSTRUCT(*)),256) WHERE ROW_HASH IS NULL';
+        v_sql := 'UPDATE ' || v_source_table || ' SET ROW_HASH = SHA2(TO_VARCHAR(OBJECT_CONSTRUCT(* EXCLUDE ROW_HASH)),256)';
         EXECUTE IMMEDIATE :v_sql;
 
     END FOR;

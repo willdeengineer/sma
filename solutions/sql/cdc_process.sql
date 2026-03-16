@@ -60,7 +60,7 @@ BEGIN
   AND IS_ACTIVE = TRUE;
    IF (v_entity IS NULL) THEN
     UPDATE LOGGING.RUN_LOG 
-    SET END_TS = CURRENT_TIMESTAMP(), STATUS = 'FAILED', ERROR_CODE = 'CONFIG_NOT_FOUND'
+    SET END_TS = CURRENT_TIMESTAMP(), STATUS = 'FAILED'
     WHERE RUN_ID = :v_runid;
     RETURN 'Fout: config met id ' || config_id || ' niet gevonden.';
   END IF;
@@ -113,6 +113,7 @@ BEGIN
   EXECUTE IMMEDIATE v_sql;
   v_key_errors := SQLROWCOUNT;
 
+  BEGIN TRANSACTION;
   ---------------------------------------------
   -- 5. Inserts uitvoeren
   -- Inserts worden alleen uitgevoerd voor rijen zonder errors.
@@ -140,7 +141,7 @@ BEGIN
   -- Bij 'HISTORY' worden oude versies van rijen in de target op non actief gezet (IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP()) en wordt een nieuwe rij met de nieuwe waarde, IS_ACTIVE = TRUE en START_TS = CURRENT_TIMESTAMP() toegevoegd.
   IF (v_update_strategy = 'HISTORY') THEN
     v_sql := 'UPDATE ' || v_target || ' t
-      SET IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP()
+      SET IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP(), CDC_OPERATION = ''''
       WHERE t.IS_ACTIVE = TRUE
       AND EXISTS (
         SELECT 1
@@ -233,7 +234,17 @@ BEGIN
       :v_key_errors
   );
 
+  COMMIT;
   RETURN 'Entity ' || v_entity || ' verwerkt.';
+
+  EXCEPTION
+    WHEN OTHER THEN
+      -- Foutafhandeling update run log met status FAILED en return de sql foutmelding
+      ROLLBACK;
+      UPDATE LOGGING.RUN_LOG 
+      SET END_TS = CURRENT_TIMESTAMP(), STATUS = 'FAILED'
+      WHERE RUN_ID = :v_runid;
+      RETURN 'Fout tijdens verwerken entity ' || v_entity || ': ' || SQLERRM;
 
 END;
 $$;
