@@ -69,7 +69,7 @@ clear_the_stream as
 (select * from cdc_streams_db.staging.staging_source_table_stream);
 select count(*) from cdc_streams_db.staging.staging_source_table_stream; --now returns 0 since the offset has been reset.
 
-USE DATABASE CDC_SQL_DB;
+USE DATABASE CDC_PYTHON_DB;
 UPDATE STAGING.S_EMPLOYEE
 SET SALARY = SALARY + 400
 WHERE EMPLOYEE_ID IN ('R000001', 'R000002', 'R000003', 'R000004', 'R000005');
