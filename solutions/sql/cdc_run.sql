@@ -28,6 +28,7 @@ DECLARE
     v_config_id INT;
     v_run_id INT;
     v_source_table STRING;
+      v_run_status STRING;
     v_columns STRING;
 
     v_sql STRING;
@@ -61,6 +62,15 @@ BEGIN
     FOR record IN c2 DO
         v_config_id := record.CONFIG_ID;
         CALL CDC_PROCESS(:v_config_id, :v_run_id);
+
+            SELECT STATUS
+            INTO :v_run_status
+            FROM LOGGING.RUN_LOG
+            WHERE RUN_ID = :v_run_id;
+
+            IF (v_run_status = 'FAILED') THEN
+                  RETURN 'Run met id ' || v_run_id || ' is mislukt.';
+            END IF;
     END FOR;
 
   -- Na het uitvoeren van CDC_PROCESS voor alle entiteiten worden de totalen van inserts, updates, deletes, etc. in RUN_LOG bijgewerkt op basis van de gegevens in RUN_ENTITY_LOG.

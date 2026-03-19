@@ -97,30 +97,30 @@ USE SCHEMA STAGING;
 CREATE OR REPLACE TABLE S_Employee (
   -- ROW_HASH STRING, -- bv. 'abc123def456'
   -- Velden
-  EMPLOYEE_ID STRING, -- bv. 'R001'
+  EMPLOYEE_ID STRING(10), -- bv. 'R001'
   SALARY NUMBER, -- bv. 5000
-  MANAGER STRING, -- bv. 'A', 'B', 'C'
-  DEPARTMENT STRING -- bv. 'HR', 'IT', 'SALES'
+  MANAGER STRING(50), -- bv. 'A', 'B', 'C'
+  DEPARTMENT STRING(50) -- bv. 'HR', 'IT', 'SALES'
 );
 
 CREATE OR REPLACE TABLE S_Customer (
   -- ROW_HASH STRING, -- bv. 'abc123def456'
   -- Velden
-  CUSTOMER_ID STRING, -- bv. 'C001'
-  CUSTOMER_NAME STRING, -- bv. 'John Doe'
-  EMAIL STRING, -- bv. 'john.doe@example.com'
-  COUNTRY STRING, -- bv. 'NL', 'BE', 'DE'
+  CUSTOMER_ID STRING(10), -- bv. 'C001'
+  CUSTOMER_NAME STRING(100), -- bv. 'John Doe'
+  EMAIL STRING(100), -- bv. 'john.doe@example.com'
+  COUNTRY STRING(50), -- bv. 'NL', 'BE', 'DE'
   REGISTRATION_DATE DATE -- bv. '1-1-2026'
 );
 
 CREATE OR REPLACE TABLE S_Order (
   -- ROW_HASH STRING, -- bv. 'abc123def456'
   -- Velden
-  ORDER_ID STRING, -- bv. 'O001'
-  CUSTOMER_ID STRING, -- bv. 'C001'
+  ORDER_ID STRING(10), -- bv. 'O001'
+  CUSTOMER_ID STRING(10), -- bv. 'C001'
   ORDER_DATE DATE, -- bv. '1-1-2026'
   TOTAL_AMOUNT NUMBER, -- bv. 100.50
-  STATUS STRING -- bv. 'PENDING', 'COMPLETED', 'CANCELLED'
+  STATUS STRING(50) -- bv. 'PENDING', 'COMPLETED', 'CANCELLED'
 );
 
 -- -------------------------------------------------
@@ -131,30 +131,30 @@ CREATE OR REPLACE TABLE S_Order (
 USE SCHEMA TARGET;
 
 CREATE OR REPLACE TABLE T_Employee (
-  ROW_HASH STRING NOT NULL, -- bv. 'abc123def456'
+  ROW_HASH STRING(64) NOT NULL, -- bv. 'abc123def456'
   START_TS TIMESTAMP_NTZ  NOT NULL, -- bv. '2025-12-13 10:00:00'
   END_TS TIMESTAMP_NTZ, -- bv. NULL of '2025-12-14 12:00:00'
   IS_ACTIVE BOOLEAN DEFAULT TRUE, -- bv. FALSE of TRUE
-  CDC_OPERATION STRING NOT NULL, -- 'I (insert)','U (update)','D (delete)'
+  CDC_OPERATION CHAR NOT NULL, -- 'I (insert)','U (update)','D (delete)'
   -- Velden
-  EMPLOYEE_ID STRING, -- bv. 'R001'
+  EMPLOYEE_ID STRING(10), -- bv. 'R001'
   SALARY NUMBER, -- bv. 5000
-  MANAGER STRING, -- bv. 'A', 'B', 'C'
-  DEPARTMENT STRING, -- bv. 'HR', 'IT', 'SALES'
+  MANAGER STRING(50), -- bv. 'A', 'B', 'C'
+  DEPARTMENT STRING(50), -- bv. 'HR', 'IT', 'SALES'
   PRIMARY KEY (EMPLOYEE_ID, START_TS) 
 );
 
 CREATE OR REPLACE TABLE T_Customer (
-  ROW_HASH STRING NOT NULL, -- bv. 'abc123def456'
+  ROW_HASH STRING(64) NOT NULL, -- bv. 'abc123def456'
   START_TS TIMESTAMP_NTZ NOT NULL, -- bv. '2025-12-13 10:00:00'
   END_TS TIMESTAMP_NTZ, -- bv. NULL of '2025-12-14 12:00:00'
   IS_ACTIVE BOOLEAN DEFAULT TRUE, -- bv. FALSE of TRUE
   CDC_OPERATION STRING NOT NULL, -- 'I (insert)','U (update)','D (delete)'
   -- Velden
-  CUSTOMER_ID STRING, -- bv. 'C001'
-  CUSTOMER_NAME STRING, -- bv. 'John Doe'
-  EMAIL STRING, -- bv. 'john.doe@example.com'
-  COUNTRY STRING, -- bv. 'NL', 'BE', 'DE'
+  CUSTOMER_ID STRING(10), -- bv. 'C001'
+  CUSTOMER_NAME STRING(50), -- bv. 'John Doe'
+  EMAIL STRING(50), -- bv. 'john.doe@example.com'
+  COUNTRY STRING(2), -- bv. 'NL', 'BE', 'DE'
   REGISTRATION_DATE DATE, -- bv. '1-1-2026'
   PRIMARY KEY (CUSTOMER_ID, START_TS) 
 );
