@@ -50,17 +50,20 @@ DECLARE
   -- Dynamische SQL variabele (wordt gebruikt om SQL statements te maken en uitvoeren die afhankelijk zijn van de configuratie en de structuur van de brondata)
   v_sql STRING;
 BEGIN
+  SYSTEM$LOG('❄ CDC proces gestart');
   ---------------------------------------------
   -- 3. Run initialiseren
   ---------------------------------------------
   -- Config van de entiteit ophalen
+  SYSTEM$LOG('❄ Config van de entiteit ophalen...');
   SELECT ENTITY_NAME, PRIMARY_KEY_COLUMN, SOURCE_TABLE, TARGET_TABLE, DELETE_STRATEGY, ERROR_STRATEGY, UPDATE_STRATEGY
   INTO v_entity, v_pk, v_source, v_target, v_delete_strategy, v_error_strategy, v_update_strategy
   FROM CDC.CDC_CONFIG
   WHERE CONFIG_ID = :config_id
     AND IS_ACTIVE = TRUE;
-
+  SYSTEM$LOG('❄ Config opgehaald: ENTITY=' || v_entity || ', SOURCE_TABLE=' || v_source || ', TARGET_TABLE=' || v_target || ', PRIMARY_KEY_COLUMN=' || v_pk);
   -- Business kolommen van de entiteit ophalen (alle kolommen behalve kolommen die we gebruiken voor CDC logica: ROW_HASH, START_TS, END_TS, IS_ACTIVE, CDC_OPERATION en de primary key).
+  SYSTEM$LOG('❄ Business kolommen van de entiteit ophalen...');
   SELECT LISTAGG('"' || COLUMN_NAME || '"', ', ') 
   INTO :v_business_columns
   FROM INFORMATION_SCHEMA.COLUMNS
@@ -68,7 +71,9 @@ BEGIN
     AND TABLE_NAME = UPPER(SPLIT_PART(:v_source, '.', -1))
     AND COLUMN_NAME NOT IN ('ROW_HASH', 'START_TS', 'END_TS', 'IS_ACTIVE', 'CDC_OPERATION')
     AND COLUMN_NAME != :v_pk;
+  SYSTEM$LOG('❄ Business kolommen opgehaald: ' || :v_business_columns);
 
+  SYSTEM$LOG('❄ Business kolommen maken voor update strategie OVERWRITE...');
   -- Business kolommen maken voor de update statement in geval van 'OVERWRITE' update strategie
   SELECT LISTAGG('"' || COLUMN_NAME || '" = s."' || COLUMN_NAME || '"', ', ')
   INTO :v_business_columns_update
@@ -77,11 +82,13 @@ BEGIN
     AND TABLE_NAME = UPPER(SPLIT_PART(:v_source, '.', -1))
     AND COLUMN_NAME NOT IN ('ROW_HASH', 'START_TS', 'END_TS', 'IS_ACTIVE', 'CDC_OPERATION')
     AND COLUMN_NAME != :v_pk;
+  SYSTEM$LOG('❄ Business kolommen voor update opgehaald: ' || :v_business_columns_update);
 
   ---------------------------------------------
   -- 4. Errors detecteren
   ---------------------------------------------
   -- Duplicate inserts in staging detecteren (zelfde PK, zelfde hash)
+  SYSTEM$LOG('❄ Duplicate inserts detecteren...');
   v_sql := 'INSERT INTO LOGGING.RUN_ERROR_LOG (RUN_ID, ENTITY_NAME, ERROR_CODE, ERROR_ROW)
             SELECT ' || v_runid || ', ''' || v_entity || ''', ''DUPLICATE_INSERT'', OBJECT_CONSTRUCT(*)
             FROM (
@@ -93,8 +100,10 @@ BEGIN
             WHERE t.CNT > 1';
   EXECUTE IMMEDIATE v_sql;
   v_duplicate_inserts := SQLROWCOUNT;
+  SYSTEM$LOG('❄ Duplicate inserts gedetecteerd: ' || v_duplicate_inserts);
 
   -- Duplicate updates in staging detecteren (zelfde PK, verschillende hash)
+  SYSTEM$LOG('❄ Duplicate updates detecteren...');
   v_sql := 'INSERT INTO LOGGING.RUN_ERROR_LOG (RUN_ID, ENTITY_NAME, ERROR_CODE, ERROR_ROW)
             SELECT ' || v_runid || ', ''' || v_entity || ''', ''DUPLICATE_UPDATE'', OBJECT_CONSTRUCT(*)
             FROM ' || v_source || ' s
@@ -108,23 +117,24 @@ BEGIN
               )';
   EXECUTE IMMEDIATE v_sql;
   v_duplicate_updates := SQLROWCOUNT;
+  SYSTEM$LOG('❄ Duplicate updates gedetecteerd: ' || v_duplicate_updates);
 
   -- Key errors detecteren (null of lege waarde in primary key)
+  SYSTEM$LOG('❄ Key errors detecteren...');
   v_sql := 'INSERT INTO LOGGING.RUN_ERROR_LOG (RUN_ID, ENTITY_NAME, ERROR_CODE, ERROR_ROW)
             SELECT ' || v_runid || ', ''' || v_entity || ''', ''PRIMARY_KEY_ERROR'', OBJECT_CONSTRUCT(*)
             FROM ' || v_source || ' s
             WHERE s.' || v_pk || ' IS NULL OR s.' || v_pk || ' = ''''';
   EXECUTE IMMEDIATE v_sql;
   v_key_errors := SQLROWCOUNT;
+  SYSTEM$LOG('❄ Key errors gedetecteerd: ' || v_key_errors);
 
-  ---------------------------------------------
-  -- Transactie beginnen van het CDC proces met rollback mogelijkheid bij fouten.
-  ---------------------------------------------
   BEGIN TRANSACTION;
   ---------------------------------------------
   -- 5. Inserts uitvoeren
   -- Inserts worden alleen uitgevoerd voor rijen zonder errors.
   ---------------------------------------------
+  SYSTEM$LOG('❄ Inserts uitvoeren...');
   v_sql := 'INSERT INTO ' || v_target || ' (ROW_HASH, START_TS, IS_ACTIVE, CDC_OPERATION, ' || v_pk || ', ' || v_business_columns || ')
             SELECT s.ROW_HASH, CURRENT_TIMESTAMP(), TRUE, ''I'', s.' || v_pk || ', ' || 's.' || REPLACE(:v_business_columns, ', ', ', s.') || '
             FROM ' || v_source || ' s
@@ -137,12 +147,14 @@ BEGIN
               WHERE s2.' || v_pk || ' = s.' || v_pk || ') = 1';
   EXECUTE IMMEDIATE v_sql;
   v_inserts := SQLROWCOUNT;
+  SYSTEM$LOG('❄ Inserts uitgevoerd: ' || v_inserts);
 
   ---------------------------------------------
   -- 6. Updates uitvoeren
   -- Updates worden uitgevoerd afhankelijk van de update strategie.
   ---------------------------------------------
   -- Bij 'HISTORY' worden oude versies van rijen in de target op non actief gezet (IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP()) en wordt een nieuwe rij met de nieuwe waarde, IS_ACTIVE = TRUE en START_TS = CURRENT_TIMESTAMP() toegevoegd.
+  SYSTEM$LOG('❄ Updates uitvoeren met stratregy ' || v_update_strategy || '...');
   IF (v_update_strategy = 'HISTORY') THEN
     v_sql := 'UPDATE ' || v_target || ' t
               SET IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP()
@@ -188,12 +200,14 @@ BEGIN
   END IF;
   EXECUTE IMMEDIATE v_sql;
   v_updates := SQLROWCOUNT;
+  SYSTEM$LOG('❄ Updates uitgevoerd: ' || v_updates);
 
   ---------------------------------------------
   -- 7. Deletes
   -- Deletes worden uitgevoerd afhankelijk van de delete strategie.
   ---------------------------------------------
   -- Bij 'SOFT' worden rijen in de target op non actief gezet (IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP()).
+  SYSTEM$LOG('❄ Deletes uitvoeren met strategy ' || v_delete_strategy || '...');
   IF (v_delete_strategy = 'SOFT') THEN
       v_sql := 'UPDATE ' || v_target || ' t
       SET IS_ACTIVE = FALSE, END_TS = CURRENT_TIMESTAMP(), CDC_OPERATION = ''D''
@@ -215,11 +229,13 @@ BEGIN
   END IF;
   EXECUTE IMMEDIATE v_sql;
   v_deletes := SQLROWCOUNT;
+  SYSTEM$LOG('❄ Deletes uitgevoerd: ' || v_deletes);
 
   ---------------------------------------------
   -- 8. Run voltooien
   -- De log van de entiteit wordt bijgewerkt met het aantal inserts, updates, deletes, etc.
   ---------------------------------------------
+  SYSTEM$LOG('❄ Run voltooien en loggen...');
   INSERT INTO LOGGING.RUN_ENTITY_LOG
   VALUES (
       :run_id,
@@ -236,6 +252,7 @@ BEGIN
   );
 
   COMMIT;
+  SYSTEM$LOG('❄ Entity ' || v_entity || ' verwerkt.');
   RETURN 'Entity ' || v_entity || ' verwerkt.';
 
   EXCEPTION
@@ -244,6 +261,7 @@ BEGIN
       UPDATE LOGGING.RUN_LOG 
       SET END_TS = CURRENT_TIMESTAMP(), STATUS = 'FAILED'
       WHERE RUN_ID = :v_runid;
+      SYSTEM$LOG('❄ Fout tijdens verwerken van entity ' || v_entity || ': ' || SQLERRM);
       RETURN 'Fout tijdens verwerken van entiteit met naam ' || v_entity || ': ' || SQLERRM;
 
 END;
