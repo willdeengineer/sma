@@ -1,18 +1,13 @@
 -- -------------------------------------------------
--- CDC regressietests (SQL variant)
---
--- Dit script valideert het CDC-proces met 4 scenario's:
--- 1) Inserts
--- 2) Updates met HISTORY strategie
--- 3) Soft deletes
--- 4) Data quality errors (duplicate insert/update + missende PK)
--- 5) Failed run bij ongeldige configuratie
--- 6) Updates met OVERWRITE strategie
--- 7) Deletes met HARD strategie
---
--- Verwacht:
--- - De procedures uit solutions/sql moeten al zijn aangemaakt.
--- - De database CDC_SQL_DB moet bestaan en gevuld zijn met de CDC objecten.
+-- CDC data quality test
+-- Dit script test het CDC proces met 4 scenario's:
+-- 1. Inserts
+-- 2. Updates met HISTORY strategie
+-- 3. Deletes met SOFT strategie
+-- 4. Data quality errors (duplicate insert/update + missende PK)
+-- 5. Failed run
+-- 6. Updates met OVERWRITE strategie
+-- 7. Deletes met HARD strategie
 -- -------------------------------------------------
 
 USE DATABASE CDC_SQL_DB;
@@ -239,7 +234,7 @@ FROM TARGET.T_EMPLOYEE
 WHERE IS_ACTIVE = TRUE;
 
 -- -------------------------------------------------
--- Scenario 5: ❌ FAILed run
+-- Scenario 5: Failed run
 -- -------------------------------------------------
 TRUNCATE TABLE LOGGING.RUN_LOG;
 TRUNCATE TABLE LOGGING.RUN_ENTITY_LOG;
@@ -252,16 +247,16 @@ CALL CDC.CDC_PROCESS(-1, 999001);
 
 INSERT INTO TEST_RESULTS
 SELECT
-    'T13 - ❌ FAILed run: status is ❌ FAILED',
+    'T13 - Failed run: status is FAILED',
     IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
-    '❌ FAILed_runs=' || COUNT(*)
+    'Failed_runs=' || COUNT(*)
 FROM LOGGING.RUN_LOG
 WHERE RUN_ID = 999001
-  AND STATUS = '❌ FAILED';
+  AND STATUS = 'FAILED';
 
 INSERT INTO TEST_RESULTS
 SELECT
-    'T14 - ❌ FAILed run: geen entity log rows',
+    'T14 - Failed run: geen entity log rows',
     IFF(COUNT(*) = 0, '✅ PASS', '❌ FAIL'),
     'entity_log_rows=' || COUNT(*)
 FROM LOGGING.RUN_ENTITY_LOG
