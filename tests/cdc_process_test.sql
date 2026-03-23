@@ -15,7 +15,7 @@
 -- - De database CDC_SQL_DB moet bestaan en gevuld zijn met de CDC objecten.
 -- -------------------------------------------------
 
-USE DATABASE CDC_PYTHON_DB;
+USE DATABASE CDC_SQL_DB;
 USE SCHEMA CDC;
 
 CREATE OR REPLACE TEMP TABLE TEST_RESULTS (
@@ -66,7 +66,7 @@ CALL CDC.CDC_RUN();
 INSERT INTO TEST_RESULTS
 SELECT
     'T01 - inserts: 3 actieve rijen in target',
-    IFF(COUNT(*) = 3, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 3, '✅ PASS', '❌ FAIL'),
     'active_target_rows=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE IS_ACTIVE = TRUE;
@@ -74,7 +74,7 @@ WHERE IS_ACTIVE = TRUE;
 INSERT INTO TEST_RESULTS
 SELECT
     'T02 - inserts: run status is completed',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'completed_runs=' || COUNT(*)
 FROM LOGGING.RUN_LOG
 WHERE STATUS = 'COMPLETED';
@@ -82,7 +82,7 @@ WHERE STATUS = 'COMPLETED';
 INSERT INTO TEST_RESULTS
 SELECT
     'T03 - inserts: rows_inserted in run log = 3',
-    IFF(MAX(ROWS_INSERTED) = 3, 'PASS', 'FAIL'),
+    IFF(MAX(ROWS_INSERTED) = 3, '✅ PASS', '❌ FAIL'),
     'rows_inserted=' || COALESCE(MAX(ROWS_INSERTED), 0)
 FROM LOGGING.RUN_LOG;
 
@@ -102,7 +102,7 @@ CALL CDC.CDC_RUN();
 INSERT INTO TEST_RESULTS
 SELECT
     'T04 - history update: 1 actieve record voor E001 met cdc_operation U en geupdate waarde',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'active_u_rows_for_E001=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE EMPLOYEE_ID = 'E001'
@@ -113,7 +113,7 @@ WHERE EMPLOYEE_ID = 'E001'
 INSERT INTO TEST_RESULTS
 SELECT
     'T05 - history update: totaal rows voor E001 is 2 (oude versie + nieuwe versie)',
-    IFF(COUNT(*) = 2, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 2, '✅ PASS', '❌ FAIL'),
     'history_rows_for_E001=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE EMPLOYEE_ID = 'E001';
@@ -121,7 +121,7 @@ WHERE EMPLOYEE_ID = 'E001';
 INSERT INTO TEST_RESULTS
 SELECT
     'T06 - history update: rows_updated in laatste run = 1',
-    IFF(ROWS_UPDATED = 1, 'PASS', 'FAIL'),
+    IFF(ROWS_UPDATED = 1, '✅ PASS', '❌ FAIL'),
     'rows_updated=' || ROWS_UPDATED
 FROM (
     SELECT ROWS_UPDATED
@@ -144,7 +144,7 @@ CALL CDC.CDC_RUN();
 INSERT INTO TEST_RESULTS
 SELECT
     'T07 - soft delete: E002 als D en inactief en einddatum gezet',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'deleted_rows_for_E002=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE EMPLOYEE_ID = 'E002'
@@ -155,7 +155,7 @@ WHERE EMPLOYEE_ID = 'E002'
 INSERT INTO TEST_RESULTS
 SELECT
     'T08 - soft delete: rows_deleted in laatste run = 1',
-    IFF(ROWS_DELETED = 1, 'PASS', 'FAIL'),
+    IFF(ROWS_DELETED = 1, '✅ PASS', '❌ FAIL'),
     'rows_deleted=' || ROWS_DELETED
 FROM (
     SELECT ROWS_DELETED
@@ -209,7 +209,7 @@ CALL CDC.CDC_RUN();
 INSERT INTO TEST_RESULTS
 SELECT
     'T09 - quality: duplicate_insert errors >= 1',
-    IFF(COUNT(*) >= 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) >= 1, '✅ PASS', '❌ FAIL'),
     'duplicate_insert_errors=' || COUNT(*)
 FROM LOGGING.RUN_ERROR_LOG
 WHERE ERROR_CODE = 'DUPLICATE_INSERT';
@@ -217,7 +217,7 @@ WHERE ERROR_CODE = 'DUPLICATE_INSERT';
 INSERT INTO TEST_RESULTS
 SELECT
     'T10 - quality: duplicate_update errors >= 1',
-    IFF(COUNT(*) >= 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) >= 1, '✅ PASS', '❌ FAIL'),
     'duplicate_update_errors=' || COUNT(*)
 FROM LOGGING.RUN_ERROR_LOG
 WHERE ERROR_CODE = 'DUPLICATE_UPDATE';
@@ -225,7 +225,7 @@ WHERE ERROR_CODE = 'DUPLICATE_UPDATE';
 INSERT INTO TEST_RESULTS
 SELECT
     'T11 - quality: primary_key_error = 2',
-    IFF(COUNT(*) = 2, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 2, '✅ PASS', '❌ FAIL'),
     'primary_key_errors=' || COUNT(*)
 FROM LOGGING.RUN_ERROR_LOG
 WHERE ERROR_CODE = 'PRIMARY_KEY_ERROR';
@@ -233,13 +233,13 @@ WHERE ERROR_CODE = 'PRIMARY_KEY_ERROR';
 INSERT INTO TEST_RESULTS
 SELECT
     'T12 - quality: alleen geldige unieke key inserted (E300)',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'active_target_rows=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE IS_ACTIVE = TRUE;
 
 -- -------------------------------------------------
--- Scenario 5: Failed run
+-- Scenario 5: ❌ FAILed run
 -- -------------------------------------------------
 TRUNCATE TABLE LOGGING.RUN_LOG;
 TRUNCATE TABLE LOGGING.RUN_ENTITY_LOG;
@@ -252,17 +252,17 @@ CALL CDC.CDC_PROCESS(-1, 999001);
 
 INSERT INTO TEST_RESULTS
 SELECT
-    'T13 - failed run: status is FAILED',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
-    'failed_runs=' || COUNT(*)
+    'T13 - ❌ FAILed run: status is ❌ FAILED',
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
+    '❌ FAILed_runs=' || COUNT(*)
 FROM LOGGING.RUN_LOG
 WHERE RUN_ID = 999001
-  AND STATUS = 'FAILED';
+  AND STATUS = '❌ FAILED';
 
 INSERT INTO TEST_RESULTS
 SELECT
-    'T14 - failed run: geen entity log rows',
-    IFF(COUNT(*) = 0, 'PASS', 'FAIL'),
+    'T14 - ❌ FAILed run: geen entity log rows',
+    IFF(COUNT(*) = 0, '✅ PASS', '❌ FAIL'),
     'entity_log_rows=' || COUNT(*)
 FROM LOGGING.RUN_ENTITY_LOG
 WHERE RUN_ID = 999001;
@@ -315,7 +315,7 @@ CALL CDC.CDC_RUN();
 INSERT INTO TEST_RESULTS
 SELECT
     'T15 - overwrite: nog maar 1 row voor E500',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'rows_for_E500=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE EMPLOYEE_ID = 'E500';
@@ -323,7 +323,7 @@ WHERE EMPLOYEE_ID = 'E500';
 INSERT INTO TEST_RESULTS
 SELECT
     'T16 - overwrite: actieve row bevat nieuwe waarden',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'matching_rows=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE EMPLOYEE_ID = 'E500'
@@ -336,7 +336,7 @@ WHERE EMPLOYEE_ID = 'E500'
 INSERT INTO TEST_RESULTS
 SELECT
     'T17 - overwrite: rows_updated in laatste run = 1 (oude waarde overschreven)',
-    IFF(ROWS_UPDATED = 1, 'PASS', 'FAIL'),
+    IFF(ROWS_UPDATED = 1, '✅ PASS', '❌ FAIL'),
     'rows_updated=' || ROWS_UPDATED
 FROM (
     SELECT ROWS_UPDATED
@@ -393,7 +393,7 @@ CALL CDC.CDC_RUN();
 INSERT INTO TEST_RESULTS
 SELECT
     'T18 - hard delete: E602 bestaat niet meer in target',
-    IFF(COUNT(*) = 0, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 0, '✅ PASS', '❌ FAIL'),
     'rows_for_E602=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE EMPLOYEE_ID = 'E602';
@@ -401,7 +401,7 @@ WHERE EMPLOYEE_ID = 'E602';
 INSERT INTO TEST_RESULTS
 SELECT
     'T19 - hard delete: rows_deleted in laatste run = 1',
-    IFF(ROWS_DELETED = 1, 'PASS', 'FAIL'),
+    IFF(ROWS_DELETED = 1, '✅ PASS', '❌ FAIL'),
     'rows_deleted=' || ROWS_DELETED
 FROM (
     SELECT ROWS_DELETED
@@ -412,7 +412,7 @@ FROM (
 INSERT INTO TEST_RESULTS
 SELECT
     'T20 - hard delete: 1 actieve row blijft over (E602 is hard deleted)',
-    IFF(COUNT(*) = 1, 'PASS', 'FAIL'),
+    IFF(COUNT(*) = 1, '✅ PASS', '❌ FAIL'),
     'active_target_rows=' || COUNT(*)
 FROM TARGET.T_EMPLOYEE
 WHERE IS_ACTIVE = TRUE;

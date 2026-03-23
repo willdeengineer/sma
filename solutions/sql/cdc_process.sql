@@ -33,7 +33,7 @@ DECLARE
   v_error_strategy STRING;
   v_update_strategy STRING;
   v_business_columns STRING;
-  v_business_update_assignments STRING;
+  v_business_columns_update STRING;
 
   -- Statistiek variabelen
   v_unchanged INT := 0;
@@ -62,6 +62,7 @@ BEGIN
   WHERE CONFIG_ID = :config_id
     AND IS_ACTIVE = TRUE;
   SYSTEM$LOG('❄ Config opgehaald: ENTITY=' || v_entity || ', SOURCE_TABLE=' || v_source || ', TARGET_TABLE=' || v_target || ', PRIMARY_KEY_COLUMN=' || v_pk);
+
   -- Business kolommen van de entiteit ophalen (alle kolommen behalve kolommen die we gebruiken voor CDC logica: ROW_HASH, START_TS, END_TS, IS_ACTIVE, CDC_OPERATION en de primary key).
   SYSTEM$LOG('❄ Business kolommen van de entiteit ophalen...');
   SELECT LISTAGG('"' || COLUMN_NAME || '"', ', ') 
@@ -74,6 +75,7 @@ BEGIN
   SYSTEM$LOG('❄ Business kolommen opgehaald: ' || :v_business_columns);
 
   SYSTEM$LOG('❄ Business kolommen maken voor update strategie OVERWRITE...');
+
   -- Business kolommen maken voor de update statement in geval van 'OVERWRITE' update strategie
   SELECT LISTAGG('"' || COLUMN_NAME || '" = s."' || COLUMN_NAME || '"', ', ')
   INTO :v_business_columns_update
