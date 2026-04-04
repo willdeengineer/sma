@@ -201,9 +201,9 @@
         AND t.ROW_HASH <> s.ROW_HASH
         AND (SELECT COUNT(*) FROM ' || v_source || ' AS s2
           WHERE s2.' || v_pk || ' = s.' || v_pk || ') = 1';
-    EXECUTE IMMEDIATE v_sql;
-    v_updates := SQLROWCOUNT;
-
+      EXECUTE IMMEDIATE v_sql;
+      v_updates := SQLROWCOUNT;
+      
     END IF;
     SYSTEM$LOG('❄ Updates uitgevoerd: ' || v_updates);
 
