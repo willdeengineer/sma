@@ -1,4 +1,4 @@
-# Snowflake CDC Component
+# Handleiding Snowflake CDC Component
 
 Dit project is een Proof of Technology van het Change Data Capture (CDC) proces in Snowflake, met twee varianten:
 

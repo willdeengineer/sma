@@ -10,9 +10,9 @@
 -- 1. Database en schemas aanmaken
 -- Hier worden de database en schemas aangemaakt die we nodig hebben voor het CDC proces.
 -- -------------------------------------------------
-CREATE DATABASE IF NOT EXISTS CDC_STREAMS_DB;
+CREATE DATABASE IF NOT EXISTS CDC_SQL_DB;
 
-USE DATABASE CDC_STREAMS_DB;
+USE DATABASE CDC_SQL_DB;
 CREATE SCHEMA IF NOT EXISTS CDC;
 CREATE SCHEMA IF NOT EXISTS LOGGING;
 CREATE SCHEMA IF NOT EXISTS STAGING;
